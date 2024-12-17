@@ -74,6 +74,11 @@ func (d *Downloader) download() error {
 	for _, u := range urls {
 		err := d.downloadFromUpstream(u, proxyURL)
 		if err != nil {
+			if strings.HasSuffix(u, "/core.db.sig") || strings.HasSuffix(u, "/extra.db.sig") {
+		        	// Archlinux dbs are not signed as of Nov 2024
+        			// https://wiki.archlinux.org/title/DeveloperWiki:Repo_DB_Signing
+        			return nil
+			}
 			log.Printf("unable to download file %v: %v", d.key, err)
 			continue // try next mirror
 		}
@@ -253,6 +258,12 @@ func getDownloadReader(f *RequestedFile) (time.Time, io.ReadSeekCloser, error) {
 	}
 
 	// we are done downloading without correctly received metadata, it is an error
+	// end 'd' properly
+	d.decrementUsage()
+	// if cache exists, use that
+	if f.cachedFileExists() {
+		return time.Time{}, nil, nil
+	}
 	return time.Time{}, nil, d.eventError
 }
 
